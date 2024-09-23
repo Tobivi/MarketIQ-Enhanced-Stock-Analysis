@@ -1,4 +1,4 @@
-# LLM-Augmented Fundamental Analysis for Algorithmic Trading
+# MarketIQ-Enhanced-Stock-Analysis
 
 ## Overview
 
