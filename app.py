@@ -10,8 +10,8 @@ import os
 from datetime import datetime, timedelta
 from tabulate import tabulate
 
+# Initialize Groq client (replace with your actual API key)
 load_dotenv()
-
 
 api_key = os.getenv("GROQ_API_KEY")
 
@@ -56,7 +56,7 @@ def evaluate_income_statements_llm(current_year_income_statement, previous_year_
     prompt = create_prompt_for_income_statement(current_year_income_statement, previous_year_income_statement)
     response = groq_client.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
-        model="llama3-groq-70b-8192-tool-use-preview",
+        model="gemma-7b-it",
         temperature=0.2,
         max_tokens=1000
     )
@@ -83,27 +83,65 @@ def backtest_strategy(all_scores, price_data):
     
     for year in range(min(all_scores['Year']), max(all_scores['Year']) + 1):
         top_stocks = all_scores[(all_scores['Year'] == year) & (all_scores['Score'] > 7)]
-        if top_stocks.empty:
-            continue
-            
-        top_stocks = top_stocks.nlargest(3, 'Score')['Ticker'].tolist()
         
+        # Add logging for debug purposes
+        st.write(f"Year {year}: Found {len(top_stocks)} top-performing stocks.")
+
+        if top_stocks.empty:
+            st.write(f"No top-performing stocks found for the year {year}. Skipping to next year.")
+            continue
+
+        top_stocks_list = top_stocks.nlargest(3, 'Score')['Ticker'].tolist()
         returns = []
-        for stock in top_stocks:
+        
+        for stock in top_stocks_list:
+            if stock not in price_data or price_data[stock].empty:
+                st.write(f"No price data available for {stock}. Skipping this stock.")
+                continue
+            
             stock_prices = price_data[stock]
+            
+            if stock_prices.empty or len(stock_prices['Close']) == 0:
+                st.write(f"Empty price data for {stock} in year {year}. Skipping.")
+                continue
+
             start_price = stock_prices['Close'].iloc[0]
             end_price = stock_prices['Close'].iloc[-1]
+            
+            if start_price == 0:
+                st.write(f"Invalid start price for {stock} in year {year}. Skipping.")
+                continue
+
             profit_loss = (end_price - start_price) / start_price
             returns.append(profit_loss)
-            executed_trades.append({'Year': year, 'Ticker': stock, 'Start Price': start_price, 'End Price': end_price, 'Profit/Loss (%)': profit_loss * 100})
-        
-        portfolio_return = np.mean(returns) if returns else 0
+            executed_trades.append({
+                'Year': year, 
+                'Ticker': stock, 
+                'Start Price': start_price, 
+                'End Price': end_price, 
+                'Profit/Loss (%)': profit_loss * 100
+            })
+
+        # Calculate average return for the portfolio
+        if returns:
+            portfolio_return = np.mean(returns)
+        else:
+            portfolio_return = 0
+
         portfolio_returns.append((year, portfolio_return))
-    
-    cumulative_returns = pd.DataFrame(portfolio_returns, columns=['Year', 'Return'])
-    cumulative_returns['Cumulative Return'] = (1 + cumulative_returns['Return']).cumprod() - 1
-    
-    return cumulative_returns, pd.DataFrame(executed_trades)
+        st.write(f"Year {year}: Portfolio return: {portfolio_return:.2%}")
+
+    if portfolio_returns:
+        cumulative_returns = pd.DataFrame(portfolio_returns, columns=['Year', 'Return'])
+        cumulative_returns['Cumulative Return'] = (1 + cumulative_returns['Return']).cumprod() - 1
+    else:
+        st.write("No valid returns calculated.")
+        cumulative_returns = pd.DataFrame(columns=['Year', 'Return', 'Cumulative Return'])
+
+    executed_trades_df = pd.DataFrame(executed_trades)
+    if executed_trades_df.empty:
+        st.write("No trades executed.")
+    return cumulative_returns, executed_trades_df
 
 def plot_cumulative_returns(cumulative_returns):
     plt.figure(figsize=(10, 6))
@@ -122,7 +160,7 @@ def calculate_sharpe_ratio(returns, risk_free_rate=0.01):
 def moving_average(prices, window):
     return prices['Close'].rolling(window).mean()
 
-st.title("Enhanced Stock Analysis for Algorithmic Trading")
+st.title("LLM-Augmented Fundamental Analysis for Algorithmic Trading")
 
 if st.button("Get Top Stocks"):
     top_stocks = get_top_sp500_stocks(20)
