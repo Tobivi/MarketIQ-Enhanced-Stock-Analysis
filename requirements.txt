@@ -6,3 +6,4 @@ pandas
 streamlit
 groq
 datetime
+python-dotenv
