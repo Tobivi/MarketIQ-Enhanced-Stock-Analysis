@@ -1,2 +1,8 @@
 yfinance
 tabulate
+matplotlib
+numpy
+pandas
+streamlit
+groq
+datetime
