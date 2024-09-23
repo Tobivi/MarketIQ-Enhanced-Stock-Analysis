@@ -122,7 +122,7 @@ def calculate_sharpe_ratio(returns, risk_free_rate=0.01):
 def moving_average(prices, window):
     return prices['Close'].rolling(window).mean()
 
-st.title("LLM-Augmented Fundamental Analysis for Algorithmic Trading")
+st.title("Enhanced Stock Analysis for Algorithmic Trading")
 
 if st.button("Get Top Stocks"):
     top_stocks = get_top_sp500_stocks(20)
