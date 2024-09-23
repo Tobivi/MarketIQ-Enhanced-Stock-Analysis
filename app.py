@@ -56,7 +56,7 @@ def evaluate_income_statements_llm(current_year_income_statement, previous_year_
     prompt = create_prompt_for_income_statement(current_year_income_statement, previous_year_income_statement)
     response = groq_client.chat.completions.create(
         messages=[{"role": "user", "content": prompt}],
-        model="llama-3.1-8b-instant",
+        model="gemma2-9b-it",
         temperature=0.2,
         max_tokens=1000
     )
